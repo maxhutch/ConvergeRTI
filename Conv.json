@@ -52,7 +52,7 @@
   "tolhelm": 0.0,
   "wait_pres": 2.0,
   "npres": 8,
-  "io_time": 0.5,
+  "io_time": 0.25,
   "extent_mesh": [
     0.5,
     0.5,
