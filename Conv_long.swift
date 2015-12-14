@@ -2,22 +2,21 @@ import "nek";
 type file;
 
 /* Inputs: standard dictionary, user file, and list of viscosities */
-//string prefix="cnv_long";
-string prefix="cnv";
-file json <"Conv.json">;
+string prefix="cnv_long";
+file json <"Conv_long.json">;
 file tusr <"single_mode.tusr">;
 
-//int max_dof = 128;
-int max_dof = 256;
+int max_dof = 128;
+//int max_dof = 256;
 //int max_dof = 512;
 //float[] orders = [4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0];
 //int[] orders = [4, 6, 8, 10, 12, 14, 16, 32];
 //int[] orders = [4, 8, 16, 32];
-int[] orders = [32];
+int[] orders = [8];
 //float[] elms = [64.0, 40.0, 32.0, 26.0, 20.0, 18.0, 16.0];
 //int[] elms = [4, 8, 12, 16, 20, 24, 28, 32];
 //int[] elms = [4, 8, 16, 32, 64];
-int[] elms = [8];
+int[] elms = [16];
 
 int[int] dealias;
 dealias[4]  =  6;
@@ -31,7 +30,7 @@ dealias[32] = 48;
 
 int job_wall = 60;
 
-int nstep = 8;
+int nstep = 24;
 int job_step = 1;
 int io_step = 1;
 
@@ -43,8 +42,8 @@ int j0 = 0;
 string analysis = "RTI";
 int post_nodes = 0;
 
-//int aspect = 32;
-int aspect = 4;
+int aspect = 32;
+//int aspect = 4;
 
 string cwd = arg("cwd", ".");
 

@@ -1,0 +1,15 @@
+max_dof = 256
+min_dof = 128
+orders[0] = 8
+elms[0] = 24
+nstep = 4
+job_step = 1
+io_step = 1
+io_time = 1.0
+job_time = 4.0
+outputs_per_job = 4
+aspect = 4
+j0 = 0
+prefix="cnv"
+json_name="/projects/HighAspectRTI/experiments/Conv/Conv.json"
+tusr_name="/projects/HighAspectRTI/experiments/Conv/single_mode.tusr"
