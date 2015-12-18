@@ -21,6 +21,7 @@ class Foo: pass
 from chest import Chest
 from slict import CachedSlict
 from glopen import glopen, glopen_many
+prefix = "cnv"
 
 
 # In[2]:
@@ -54,19 +55,34 @@ def load_from_archive(names, arch):
     return cs, scs, ps
 
 
+# In[3]:
+
+import pickle
+from os.path import exists
+if exists("{}_err.p".format(prefix)):
+    with open("{}_err.p".format(prefix), "rb") as f:
+        err_d = pickle.load(f)
+else:
+    err_d = {}
+    err_d[0,0,'A'] = 1
+err = CachedSlict(err_d)
+
+
 # We're going to compare/train on model on DNS data.  Here, we list which data sets to use and where they live.
 
-# In[3]:
+# In[4]:
 
 config = Foo()
 orders = [4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32]
-elms = [4, 8, 12, 16, 24, 32, 48, 64, 96, 128]
+elms = [1, 2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128]
 #elms = [4, 8, 12, 16, 20, 24, 28, 32]
 config.names = []
 for order in orders:
     for elm in elms:
-        if order * elm >= 64 and order * elm <= 256:
-            config.names.append("cnv_o{:d}_e{:d}/cnv_o{:d}_e{:d}".format(order, elm, order, elm))
+        if (order, elm) in err[:,:,'A'].keys():
+            continue
+        if order * elm >= 32 and order * elm <= 512:
+            config.names.append("{:s}_o{:d}_e{:d}/{:s}_o{:d}_e{:d}".format(prefix, order, elm, prefix, order, elm))
 #config.names.remove("cnv_o4_e24/cnv_o4_e24")
 #config.names.remove("cnv_o6_e24/cnv_o6_e24")
 #config.names.remove("cnv_o12_e12/cnv_o12_e12")
@@ -85,13 +101,17 @@ for order in orders:
 #    "Conv/cnv_o4_e4/cnv_o4_e4",    
 #    ]
 config.ref = ["cnv_o16_e32/cnv_o16_e32",]
+if config.ref[0] in config.names:
+    config.names.remove(config.ref[0])
+#config.ref = ["cnv_long_o16_e16/cnv_long_o16_e16",]
 #config.arch_end = "maxhutch#alpha-admin/~/pub/"
 config.arch_end = "alcf#dtn_mira/projects/HighAspectRTI/experiments/ConvergeRTI"
+#config.arch_end = "alcf#dtn_mira/projects/alpha-nek/experiments/ConvergeRTI"
 
 
 # This opens the data.  Could be rolled into a utility routine.
 
-# In[4]:
+# In[5]:
 
 cs, scs, ps = load_from_archive(config.names, config.arch_end);
 rc, rsc, rp = load_from_archive(config.ref, config.arch_end);
@@ -99,7 +119,7 @@ rc, rsc, rp = load_from_archive(config.ref, config.arch_end);
 
 # The data is remote, so we pre-fetch it for efficiency.
 
-# In[5]:
+# In[6]:
 
 #from interfaces.abstract import AbstractSlice
 height = 'H_exp'
@@ -119,9 +139,8 @@ T_end = rsc[:,height].keys()[-1]
 
 # For each run in the data set, interpolate the heights with a spline, take a derivative, and compute the mixedness from the `t_abs_proj_z` field.
 
-# In[6]:
+# In[7]:
 
-err_d = {}
 for sc, p in zip(scs, ps):
     dh = 0.
     da = 0.
@@ -142,56 +161,134 @@ for sc, p in zip(scs, ps):
     #print("Done 1")    
 
 
-# In[7]:
+# In[8]:
 
 import pickle
-with open("err.p", "wb") as f:
+if (0,0,'A') in err_d:
+    del err_d[0,0,'A']
+if (16,32,'A') in err_d:
+    del err_d[16,32,'A']
+if (16,32,'H') in err_d:
+    del err_d[16,32,'H']
+with open("{}_err.p".format(prefix), "wb") as f:
     pickle.dump(err_d, f)
 
 
-# In[40]:
+# In[9]:
 
 import pickle
-with open("times_shaheen.p", "rb") as f:
+with open("{}_times_shaheen.p".format(prefix), "rb") as f:
     times_shaheen = CachedSlict(pickle.load(f))
-with open("times_mira.p", "rb") as f:
+with open("{}_times_mira.p".format(prefix), "rb") as f:
     times_mira = CachedSlict(pickle.load(f))
 
 
-# In[32]:
-
-import pickle
-with open("err.p", "rb") as f:
-    err_d = pickle.load(f)
-
-
-# In[38]:
+# In[10]:
 
 def my_scatter(xs, ys, labels):
-    plt.scatter(xs, ys)
+    ax = plt.gca()
+    ax.scatter(xs, ys)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     for x, y, label in zip(xs, ys, labels):
-        plt.annotate(label, xy=(x, y), xytext = (20, 10), textcoords = 'offset points', ha = 'right', va = 'bottom')
+        ax.annotate(label, xy=(x, y), xytext = (20, 10), textcoords = 'offset points', ha = 'right', va = 'bottom')
+    plt.ylim(10**int(np.log10(np.min(ys))-1), 10**int(np.log10(np.max(ys))))
 
 def err_vs(time, name):
     err = CachedSlict(err_d)
-    plt.figure(figsize=(16,16))
-    core_hr = np.log10(np.array([time[k[0],k[1]] for k in time[:,:].keys() if k in err[:,:,'H'].keys()])/3600)
-    log_err = np.log10(np.array([err[k[0], k[1], 'H'] for k in err[:,:,'H'].keys() if k in time[:,:].keys()]))
+    plt.figure(figsize=(12,12))
+    core_hr = np.array([time[k[0],k[1]] for k in time[:,:].keys() if k in err[:,:,'H'].keys()])/3600
+    log_err = np.array([err[k[0], k[1], 'H'] for k in err[:,:,'H'].keys() if k in time[:,:].keys()])
     labels = ["{:d}, {:d}".format(k[0], k[1]) for k in time[:,:].keys() if k in err[:,:,'H'].keys()]
     my_scatter(core_hr, log_err, labels)
     plt.savefig('{}_H.pdf'.format(name))
-    plt.figure(figsize=(16,16))
-    log_err = np.log10(np.array([err[k[0], k[1], 'A'] for k in err[:,:,'A'].keys() if k in time[:,:].keys()]))
+    plt.figure(figsize=(12,12))
+    log_err = np.array([err[k[0], k[1], 'A'] for k in err[:,:,'A'].keys() if k in time[:,:].keys()])
     my_scatter(core_hr, log_err, labels)
     plt.savefig('{}_A.pdf'.format(name))    
 
 
-# In[34]:
+# In[21]:
 
-err_vs(times_mira[:,:,'time'], 'mira')
+def my_scatter(xs, ys, labels):
+    ax = plt.gca()
+    ax.scatter(xs, ys)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    for x, y, label in zip(xs, ys, labels):
+        ax.annotate(label, xy=(x, y), xytext = (20, 10), textcoords = 'offset points', ha = 'right', va = 'bottom')
+    plt.ylim(10**int(np.log10(np.min(ys))-1), 10**int(np.log10(np.max(ys))))
+
+def err_vs2(time_in, name):
+    err_d_filt = {(k[0], k[1]):err_d[k[0],k[1],'H'] for k in err_d.keys() if (k[0],k[1]) in time_in.keys()}
+    del err_d_filt[32,8]
+    time_filt = {k:time_in[k]/3600 for k in err_d_filt.keys()}
+    err = CachedSlict(err_d_filt)
+    time = CachedSlict(time_filt)
+    plt.figure(figsize=(12,12))
+    ax = plt.gca()
+    
+    core_hr = np.array(time.values())
+    log_err = np.array(err.values())
+    labels = ["{:d}, {:d}".format(k[0], k[1]) for k in time.keys()]
+
+    for x, y, label in zip(core_hr, log_err, labels):
+        ax.annotate(label, xy=(x, y), xytext = (20, 10), textcoords = 'offset points', ha = 'right', va = 'bottom')
+    
+    ax.scatter(core_hr, log_err)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    plt.ylim(10**int(np.log10(np.min(err.values()))-1),
+             10**int(np.log10(np.max(err.values()))))
+    
+
+    for order, elm in time[:,:].keys():
+        if (order*2,elm) in time[:,:].keys():
+            xs = [time[order,elm], time[order*2,elm]]
+            ys = [err[order,elm],  err[order*2,elm]]
+            ax.plot(xs, ys, 'b--')
+        if (order,elm*2) in time[:,:].keys():
+            xs = [time[order,elm], time[order,elm*2]]
+            ys = [err[order,elm],  err[order,elm*2]]
+            ax.plot(xs, ys, 'r--')
+
+    
+    
+    plt.figure()
+    ax = plt.gca()
+    
+    for order, elm in time[:,:].keys():
+        if (order*2,elm) in time[:,:].keys():
+            xs = [1, time[order*2,elm]/time[order,elm]]
+            ys = [1,  err[order*2,elm]/err[order,elm]]
+            ax.plot(xs, ys, 'b--')
+        if (order,elm*2) in time[:,:].keys():
+            xs = [1, time[order,elm*2]/time[order,elm]]
+            ys = [1,  err[order,elm*2]/err[order,elm]]
+            ax.plot(xs, ys, 'r--')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
 
 
-# In[39]:
+
+    #plt.savefig('{}_H.pdf'.format(name)) 
+
+
+# In[22]:
+
+err_vs2(times_mira[:,:,'time'], 'mira')
+
+
+# In[13]:
 
 err_vs(times_shaheen[:,:,'time'], 'shaheen')
+
+
+# In[14]:
+
+err = CachedSlict(err_d)
+plt.figure(figsize=(8,8))
+for elm in elms:
+    plt.semilogy(err[:,elm,'H'].keys(), err[:,elm,'H'].values(), 'x-', label="Elm = {:d}".format(elm))
+plt.legend(ncol=2)
 
