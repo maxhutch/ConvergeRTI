@@ -45,7 +45,7 @@
   "nvel": 4,
   "uservp": 0,
   "dt_initial": 1e-04,
-  "end_time": 0.0,
+  "end_time": 32.0,
   "restart": 0.0,
   "top_bound": "W",
   "rho_cp": 1.0,
